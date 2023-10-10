@@ -17,15 +17,16 @@ $perte_odorat = "";
 $date = date("Y-m-d H:i:s"); 
 $score = 0;
 $resultats_utilisateur = array();
+$erreurs = array();
 
 function validerNomPrenom($nom, $prenom) {
-    if (strlen($nom) <= 40 && strlen($prenom) <= 50) {
-        
+    if ((strlen($nom) >= 2 && strlen($nom) <= 40) && (strlen($prenom) >= 3 && strlen($prenom) <= 50)) {
         return preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ\s'-]+$/", $nom) && preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ\s'-]+$/", $prenom);
     } else {
         return false;
     }
 }
+
 
 
 function validerTemperaturePoids($temperature, $poids) {
@@ -38,85 +39,95 @@ function validerChampsRadio($maux_tete, $diarrhee, $perte_odorat) {
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $nom = isset($_POST['nom']) ? $_POST['nom'] : "";
-        $prenom = isset($_POST['prenom']) ? $_POST['prenom'] : "";
-        $temperature = isset($_POST['temperature']) ? $_POST['temperature'] : "";
-        $poids = isset($_POST['poids']) ? $_POST['poids'] : "";
-        $maux_tete = isset($_POST['maux_tete']) ? $_POST['maux_tete'] : "";
-        $diarrhee = isset($_POST['diarrhee']) ? $_POST['diarrhee'] : "";
-        $age = isset($_POST['age']) ? $_POST['age'] : "";
-        $perte_odorat = isset($_POST['perte_odorat']) ? $_POST['perte_odorat'] : "";
+    $prenom = isset($_POST['prenom']) ? $_POST['prenom'] : "";
+    $temperature = isset($_POST['temperature']) ? $_POST['temperature'] : "";
+    $poids = isset($_POST['poids']) ? $_POST['poids'] : "";
+    $maux_tete = isset($_POST['maux_tete']) ? $_POST['maux_tete'] : "";
+    $diarrhee = isset($_POST['diarrhee']) ? $_POST['diarrhee'] : "";
+    $age = isset($_POST['age']) ? $_POST['age'] : "";
+    $perte_odorat = isset($_POST['perte_odorat']) ? $_POST['perte_odorat'] : "";
 
-        
-        if (!validerNomPrenom($nom, $prenom)) {
-            echo "<p style='color: red;'>Entrez un nom et un prénom valides.</p>";
-        } elseif (!validerTemperaturePoids($temperature, $poids)) {
-            echo "<p style='color: red;'>Entrez des valeurs valides pour la température et le poids.</p>";
-        } elseif (!validerChampsRadio($maux_tete, $diarrhee, $perte_odorat)) {
-            echo "<p style='color: red;'>Veuillez répondre à toutes les questions.</p>";
-        } else{
-            
-            switch ($maux_tete) {
-                case 'oui':
-                    $score += 15;
-                    break;
-                case 'non':
-                    $score += 00;
-                    break;
-                default:
-                    break;
-            }
+    if (!validerNomPrenom($nom, $prenom)) {
+        array_push($erreurs, "Entrez un nom et un prénom valides.");
+    }
 
-            $score += ($diarrhee === 'oui') ? 15 : 0;
+    if (!validerTemperaturePoids($temperature, $poids)) {
+        array_push($erreurs, "Entrez des valeurs valides pour la température et le poids.");
+    }
 
-            switch ($age) {
-                case '00-14':
-                    $score += 20;
-                    break;
-                case '15-40':
-                    $score += 0;
-                    break;
-                default:
-                    $score += 30;
-            }
-            
-            if ($temperature > 38 || $temperature < 36) {
+    if (!validerChampsRadio($maux_tete, $diarrhee, $perte_odorat)) {
+        array_push($erreurs, "Veuillez répondre à toutes les questions.");
+    } else {
+        switch ($maux_tete) {
+            case 'oui':
+                $score += 15;
+                break;
+            case 'non':
+                $score += 0;
+                break;
+            default:
+                break;
+        }
+
+        $score += ($diarrhee === 'oui') ? 15 : 0;
+
+        switch ($age) {
+            case '0-14':
                 $score += 20;
-            }
-            
-            $score += ($perte_odorat === 'oui')? 20: 0 ;
-            
-        
+                break;
+            case '15-40':
+                $score += 0;
+                break;
+            default:
+                $score += 30;
+        }
 
-            switch (true) {
-                case ($score <= 49):
-                    $resultat = "Vous ne risquez rien";
-                    break;
-                case ($score <= 79):
-                    $resultat = "Vous êtes susceptibles d'être malade";
-                    break;
-                default:
-                    $resultat = "Vous êtes malade";
-                    break;
-            }
-            
+        if ($temperature > 38 || $temperature < 36) {
+            $score += 20;
+        }
 
-        $saisie = array(
-            "Nom" => $nom,
-            "Prénom" => $prenom,
-            "Température (°C)" => $temperature,
-            "Poids (kg)" => $poids,
-            "Date" => $date, 
-            "Maux de Tête" => $maux_tete,
-            "Diarrhée" => $diarrhee,
-            "Âge" => $age,
-            "Perte odorat" => $perte_odorat,
-            "Score" => $score,
-            "Résultat" => $resultat 
-        );
+        $score += ($perte_odorat === 'oui') ? 20 : 0;
 
-        $_SESSION['historique'][] = $saisie;
-        $resultats_utilisateur = $saisie;
+        switch (true) {
+            case ($score <= 49):
+                $resultat = "Vous ne risquez rien";
+                break;
+            case ($score <= 79):
+                $resultat = "Vous êtes susceptibles d'être malade";
+                break;
+            default:
+                $resultat = "Vous êtes malade";
+                break;
+        }
+
+        if (empty($erreurs)) {
+            $saisie = array(
+                "Nom" => $nom,
+                "Prénom" => $prenom,
+                "Température (°C)" => $temperature,
+                "Poids (kg)" => $poids,
+                "Date" => $date, 
+                "Maux de Tête" => $maux_tete,
+                "Diarrhée" => $diarrhee,
+                "Âge" => $age,
+                "Perte odorat" => $perte_odorat,
+                "Score" => $score,
+                "Résultat" => $resultat 
+            );
+
+            $_SESSION['historique'][] = $saisie;
+            $resultats_utilisateur = $saisie;
+        }
+    }
 }
+
+if (!empty($erreurs)) {
+    echo "<h2>Erreurs :</h2>";
+    echo "<ul>";
+    foreach ($erreurs as $erreur) {
+        echo "<li style='color: red;'>$erreur</li>";
+    }
+    echo "</ul>";
 }
 
 if (!empty($resultats_utilisateur)) {
@@ -127,8 +138,8 @@ if (!empty($resultats_utilisateur)) {
     }
     echo "</ul>";
 }
+
 echo '<input type="submit" onclick="window.location.href = \'soumettre.php\';" value="Voir l\'historique complet">';
-//echo '<button onclick="window.location.href = \'soumettre.php\';">Voir l\'historique complet</button>';
 ?>
 
 
@@ -145,7 +156,7 @@ echo '<input type="submit" onclick="window.location.href = \'soumettre.php\';" v
     <form action="index.php" method="post">
         <h1>Test Covid19</h1>
         <label for="nom">Nom</label>
-        <input type="text" id="nom" name="nom" required pattern="[A-Za-z]+" title="Entrez un nom valide (lettres uniquement)" >
+        <input type="text" id="nom" name="nom" required pattern="[A-Za-z]+" title="Entrez un nom valide (lettres uniquement)" value="<?php echo $nom; ?> ">
         
         <label for="prenom">Prénom</label>
         <input type="text" id="prenom" name="prenom" required pattern="[A-Za-z]+" title="Entrez un prenom valide (lettres uniquement)" >
